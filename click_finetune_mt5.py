@@ -9,16 +9,16 @@ from transformers import (DataCollatorForSeq2Seq, MT5ForConditionalGeneration,
 
 @click.command()
 @click.option(
-    "--source-path",
+    "--flores-path",
     type=click.Path(exists=True),
     required=True,
-    help="Path to source file",
+    help="Path to binarized Flores corpus",
 )
 @click.option(
-    "--target-path",
+    "--ntrex-path",
     type=click.Path(exists=True),
     required=True,
-    help="Path to target file",
+    help="Path to binarized NTREX corpus",
 )
 @click.option(
     "--model-name",
@@ -37,6 +37,12 @@ from transformers import (DataCollatorForSeq2Seq, MT5ForConditionalGeneration,
     type=str,
     default="tgt",
     help="Name of the target language in the dataset",
+)
+@click.option(
+    "--finetune-langs",
+    type=lambda x: str(x).split(","),
+    default="",
+    help="Comma-separated list of languages to fine tune on",
 )
 @click.option(
     "--prefix",
@@ -68,11 +74,12 @@ from transformers import (DataCollatorForSeq2Seq, MT5ForConditionalGeneration,
 @click.option("--logging-steps", default=50)
 @click.option("--predict-with-generate", is_flag=True)
 def train_mt5(
-    source_path,
-    target_path,
+    flores_path,
+    ntrex_path,
     model_name,
     source_lang,
     target_lang,
+    finetune_langs,
     prefix,
     output_dir,
     max_steps,
@@ -90,36 +97,45 @@ def train_mt5(
     tokenizer = MT5Tokenizer.from_pretrained(model_name)
     model = MT5ForConditionalGeneration.from_pretrained(model_name)
 
-    # Define a function to load the data from the source and target files
-    def load_data(source_file, target_file):
-        with open(source_file, "r", encoding="utf-8") as f:
-            source_lines = [line.strip() for line in f]
-        with open(target_file, "r", encoding="utf-8") as f:
-            target_lines = [line.strip() for line in f]
+    import datasets as ds
 
-        # Create a dataset with the source and target sentences
-        dataset = Dataset.from_dict(
-            {source_lang: source_lines, target_lang: target_lines}
-        )
+    flores = ds.load_from_disk(flores_path)
+    ntrex = ds.load_from_disk(ntrex_path)
 
-        return dataset
+    # Define new dataset based on source and target lang as well as finetuning langs
+    source_data_finetune = ds.concatenate_datasets(
+        [ntrex[lang] for lang in finetune_langs]
+    )  # .rename_column("text", "source")
+    target_data_finetune = ds.concatenate_datasets(
+        [ntrex[target_lang] for lang in finetune_langs]
+    )  # .rename_column("text", "target")
+
+    import pudb
+
+    pudb.set_trace()
+    data_for_finetune = ds.Dataset.from_dict(
+        {"source": source_data_finetune["text"], "target": target_data_finetune["text"]}
+    )
+
+    # Define test data
+    source_data_test = flores[source_lang]  # .rename_column("text", "source")
+    target_data_test = flores[target_lang]  # .rename_column("text", "target")
+
+    data_for_test = ds.Dataset.from_dict(
+        {"source": source_data_test["text"], "target": target_data_test["text"]}
+    )
 
     def preprocess_function(examples):
-        inputs = [f"{prefix}{ex}" for ex in examples[source_lang]]
-        targets = examples[target_lang]
+        inputs = [f"{prefix}{ex}" for ex in examples["source"]]
+        targets = examples["target"]
         model_inputs = tokenizer(
             inputs, text_target=targets, max_length=max_length_tokens, truncation=True
         )
 
         return model_inputs
 
-    data = (
-        load_data(source_path, target_path)
-        .train_test_split(test_size=0.15)
-        .map(preprocess_function, batched=True)
-    )
-    train_data = data["train"]
-    test_data = data["test"]
+    data_for_finetune = data_for_finetune.map(preprocess_function, batched=True)
+    data_for_test = data_for_test.map(preprocess_function, batched=True)
 
     # SacreBLEU
     metric = evaluate.load("sacrebleu")
@@ -175,11 +191,11 @@ def train_mt5(
     trainer = Seq2SeqTrainer(
         model=model,
         args=training_args,
-        train_dataset=train_data,
-        eval_dataset=test_data,
+        train_dataset=data_for_finetune,
+        eval_dataset=data_for_test,
         data_collator=data_collator,
         tokenizer=tokenizer,
-        compute_metrics=compute_metrics
+        compute_metrics=compute_metrics,
     )
 
     # Train the model
