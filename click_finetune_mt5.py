@@ -2,9 +2,14 @@ import click
 import evaluate
 import numpy as np
 from datasets import Dataset
-from transformers import (DataCollatorForSeq2Seq, MT5ForConditionalGeneration,
-                          MT5Tokenizer, Seq2SeqTrainer,
-                          Seq2SeqTrainingArguments, default_data_collator)
+from transformers import (
+    DataCollatorForSeq2Seq,
+    MT5ForConditionalGeneration,
+    MT5Tokenizer,
+    Seq2SeqTrainer,
+    Seq2SeqTrainingArguments,
+    default_data_collator,
+)
 
 
 @click.command()
@@ -110,27 +115,49 @@ def train_mt5(
         [ntrex[target_lang] for lang in finetune_langs]
     )  # .rename_column("text", "target")
 
-    import pudb
-
-    pudb.set_trace()
     data_for_finetune = ds.Dataset.from_dict(
-        {"source": source_data_finetune["text"], "target": target_data_finetune["text"]}
+        {
+            "source": source_data_finetune["text"],
+            "target": target_data_finetune["text"],
+            "source_language": source_data_finetune["language"],
+            "target_language": target_data_finetune["language"],
+        }
     )
 
     # Define test data
-    source_data_test = flores[source_lang]  # .rename_column("text", "source")
-    target_data_test = flores[target_lang]  # .rename_column("text", "target")
+    source_data_test = flores[source_lang]
+    target_data_test = flores[target_lang]
 
     data_for_test = ds.Dataset.from_dict(
-        {"source": source_data_test["text"], "target": target_data_test["text"]}
+        {
+            "source": source_data_test["text"],
+            "target": target_data_test["text"],
+            "source_language": source_data_test["language"],
+            "target_language": target_data_test["language"],
+        }
     )
 
     def preprocess_function(examples):
-        inputs = [f"{prefix}{ex}" for ex in examples["source"]]
+
+        prefixes = [
+            f"Translate from {srclang} to {tgtlang}: "
+
+            for srclang, tgtlang in zip(
+                examples["source_language"], examples["target_language"]
+            )
+        ]
+
+        inputs = [f"{pf}{ex}" for pf, ex in zip(prefixes, examples["source"])]
         targets = examples["target"]
         model_inputs = tokenizer(
             inputs, text_target=targets, max_length=max_length_tokens, truncation=True
         )
+        model_inputs["input_tokens"] = [
+            tokenizer.convert_ids_to_tokens(ids) for ids in model_inputs["input_ids"]
+        ]
+        model_inputs["output_tokens"] = [
+            tokenizer.convert_ids_to_tokens(ids) for ids in model_inputs["labels"]
+        ]
 
         return model_inputs
 
