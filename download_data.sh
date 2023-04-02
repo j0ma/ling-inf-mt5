@@ -15,10 +15,10 @@ flores_gzip=flores.tar.gz
 mkdir -vp $flores_folder $ntrex_folder
 
 # download flores
-#wget \
-    #--trust-server-names \
-    #--output-document "${flores_folder}/${flores_gzip}" \
-    #"${flores_url}"
+wget \
+    --trust-server-names \
+    --output-document "${flores_folder}/${flores_gzip}" \
+    "${flores_url}"
 
 pushd "${flores_folder}" && tar xzvf "${flores_gzip}" && popd
 
