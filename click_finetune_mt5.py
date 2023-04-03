@@ -70,13 +70,13 @@ import pudb
 )
 @click.option("--batch-size", type=int, default=1, help="Training batch size")
 @click.option(
-    "--learning-rate", type=float, default=3e-4, help="Learning rate for training"
+    "--learning-rate", type=float, default=0.003, help="Learning rate for training"
 )
 @click.option(
     "--max-length-tokens", type=int, default=128, help="Maximum number of tokens"
 )
-@click.option("--save-total-limit", type=int, default=5)
-@click.option("--learning-rate", type=float, default=5e-5)
+@click.option("--num-gpus", type=int, default=0, help="Number of GPUs")
+@click.option("--save-total-limit", type=int, default=1)
 @click.option("--save-steps", help="Save every `save-steps` steps.", default=100)
 @click.option("--eval-steps", help="Eval every `eval-steps` steps.", default=100)
 @click.option("--warmup-steps", default=100)
@@ -102,9 +102,24 @@ def train_mt5(
     warmup_steps,
     logging_steps,
     predict_with_generate,
+    num_gpus,
 ):
 
     assert max_steps ^ num_train_epochs
+    if num_gpus < 1:
+        import torch
+
+        num_gpus = torch.cuda.device_count()
+        click.echo(
+            f"--num-gpus not set! Found {num_gpus} GPUs.",
+            file=click.get_text_stream("stderr"),
+        )
+    else:
+        click.echo(
+            f"--num-gpus set to {num_gpus} GPUs.", file=click.get_text_stream("stderr")
+        )
+
+    click.echo(f"Learning rate: {learning_rate}")
 
     # Load the MT5 tokenizer and model
     tokenizer = MT5Tokenizer.from_pretrained(model_name)
@@ -208,14 +223,13 @@ def train_mt5(
     if max_steps:
         how_long_to_train_args = {
             "evaluation_strategy": "steps",
-            "max_steps": max_steps
+            "max_steps": max_steps,
         }
     else:
         how_long_to_train_args = {
             "evaluation_strategy": "epoch",
-            "num_train_epochs": num_train_epochs
+            "num_train_epochs": num_train_epochs,
         }
-
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=output_dir,
@@ -230,7 +244,8 @@ def train_mt5(
         logging_steps=logging_steps,
         overwrite_output_dir=True,
         predict_with_generate=predict_with_generate,
-        eval_accumulation_steps=30,
+        eval_accumulation_steps=10,
+        # num_gpu=num_gpus,
         **how_long_to_train_args,
     )
 
