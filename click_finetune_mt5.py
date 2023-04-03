@@ -63,7 +63,10 @@ import pudb
     help="Directory to store the output files",
 )
 @click.option(
-    "--max-steps", type=int, default=10, help="Maximum number of training steps"
+    "--max-steps", type=int, default=0, help="Maximum number of training steps"
+)
+@click.option(
+    "--num-train-epochs", type=int, default=0, help="Number of epochs to train"
 )
 @click.option("--batch-size", type=int, default=1, help="Training batch size")
 @click.option(
@@ -89,6 +92,7 @@ def train_mt5(
     prefix,
     output_dir,
     max_steps,
+    num_train_epochs,
     batch_size,
     learning_rate,
     max_length_tokens,
@@ -99,6 +103,9 @@ def train_mt5(
     logging_steps,
     predict_with_generate,
 ):
+
+    assert max_steps ^ num_train_epochs
+
     # Load the MT5 tokenizer and model
     tokenizer = MT5Tokenizer.from_pretrained(model_name)
     model = MT5ForConditionalGeneration.from_pretrained(model_name)
@@ -198,12 +205,23 @@ def train_mt5(
         return result
 
     # Define the training arguments
+    if max_steps:
+        how_long_to_train_args = {
+            "evaluation_strategy": "steps",
+            "max_steps": max_steps
+        }
+    else:
+        how_long_to_train_args = {
+            "evaluation_strategy": "epoch",
+            "num_train_epochs": num_train_epochs
+        }
+
+
     training_args = Seq2SeqTrainingArguments(
         output_dir=output_dir,
         max_steps=max_steps,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        evaluation_strategy="steps",
         save_total_limit=save_total_limit,
         learning_rate=learning_rate,
         save_steps=save_steps,
@@ -212,6 +230,8 @@ def train_mt5(
         logging_steps=logging_steps,
         overwrite_output_dir=True,
         predict_with_generate=predict_with_generate,
+        eval_accumulation_steps=30,
+        **how_long_to_train_args,
     )
 
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
