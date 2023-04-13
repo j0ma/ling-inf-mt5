@@ -2,7 +2,7 @@
 
 num_gpus=$(nvidia-smi -L | wc -l)
 
-python click_finetune_mt5.py \
+python -m pudb click_finetune_mt5.py \
 	--flores-path ./data-bin/flores-dev-no-orth/ \
 	--ntrex-path ./data-bin/ntrex-no-orth/ \
 	--model-name "google/mt5-small" \
