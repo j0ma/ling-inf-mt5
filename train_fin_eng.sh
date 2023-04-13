@@ -15,4 +15,5 @@ python -m pudb click_finetune_mt5.py \
     --logging-steps 600 \
     --warmup-steps 600 \
     --logging-steps 600 \
+    --finetune-all-langs-except-src-tgt \
     --num-gpus "${num_gpus}"

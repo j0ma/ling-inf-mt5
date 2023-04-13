@@ -82,6 +82,8 @@ import pudb
 @click.option("--warmup-steps", default=100)
 @click.option("--logging-steps", default=50)
 @click.option("--predict-with-generate", is_flag=True)
+@click.option("--finetune-all-langs-except-src-tgt", is_flag=True, help="Use all languages except source and target")
+@click.option("--finetune-all-langs", is_flag=True, help="Use all languages except source and target")
 def train_mt5(
     flores_path,
     ntrex_path,
@@ -103,6 +105,8 @@ def train_mt5(
     logging_steps,
     predict_with_generate,
     num_gpus,
+    finetune_all_langs_except_src_tgt,
+    finetune_all_langs
 ):
 
     assert max_steps ^ num_train_epochs
@@ -131,6 +135,12 @@ def train_mt5(
     ntrex = ds.load_from_disk(ntrex_path)
 
     # Define new dataset based on source and target lang as well as finetuning langs
+    if finetune_all_langs or finetune_all_langs_except_src_tgt:
+        finetune_langs = [lang for lang in ntrex if len(ntrex[lang]) == len(ntrex[target_lang])]
+        finetune_langs.remove(target_lang)
+        if finetune_all_langs_except_src_tgt:
+            finetune_langs.remove(source_lang)
+
     source_data_finetune = ds.concatenate_datasets(
         [ntrex[lang] for lang in finetune_langs]
     )  # .rename_column("text", "source")
@@ -185,6 +195,9 @@ def train_mt5(
 
     data_for_finetune = data_for_finetune.map(preprocess_function, batched=True)
     data_for_test = data_for_test.map(preprocess_function, batched=True)
+
+    click.echo("Fine-tuning on these languages:", err=True)
+    click.echo("\n".join([f"- {lang}" for lang in data_for_finetune]), err=True)
 
     # SacreBLEU
     metric = evaluate.load("sacrebleu")
