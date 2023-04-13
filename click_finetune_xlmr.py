@@ -10,8 +10,8 @@ from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
                           default_data_collator)
 
 accuracy = evaluate.load("accuracy")
-micro_f1 = evaluate.load("f1")
-
+micro_f1 = evaluate.load("f1", average="micro")
+macro_f1 = evaluate.load("f1", average="macro")
 
 @click.command()
 @click.option(
@@ -51,10 +51,10 @@ micro_f1 = evaluate.load("f1")
     help="Comma-separated list of languages to fine tune on",
 )
 @click.option(
-    "--evaluate-langs",
+    "--test-langs",
     type=lambda x: str(x).split(","),
     default="",
-    help="Comma-separated list of languages to fine tune on",
+    help="Comma-separated list of languages to test on",
 )
 @click.option(
     "--output-dir",
@@ -88,7 +88,7 @@ def train_xlmr(
     label_column,
     text_column,
     finetune_langs,
-    evaluate_langs,
+    test_langs,
     output_dir,
     max_steps,
     num_train_epochs,
@@ -141,7 +141,7 @@ def train_xlmr(
         data_for_finetune = data_for_finetune.rename_column(label_column, "label")
 
     # Define test data
-    data_for_test = ds.concatenate_datasets([flores[lang] for lang in evaluate_langs])
+    data_for_test = ds.concatenate_datasets([flores[lang] for lang in test_langs])
 
     if "text" not in data_for_test.column_names:
         data_for_test = data_for_test.rename_column(text_column, "text")
@@ -151,7 +151,7 @@ def train_xlmr(
 
     # Create label -> integer id mapping
     label_to_id = {
-        label: i for i, label in enumerate(set(finetune_langs + evaluate_langs))
+        label: i for i, label in enumerate(set(finetune_langs + test_langs))
     }
 
     def preprocess_function(examples):
@@ -189,12 +189,15 @@ def train_xlmr(
         learning_rate=learning_rate,
         save_steps=save_steps,
         eval_steps=eval_steps,
+        evaluation_strategy="no" if eval_steps < 0 else {0: "epoch"}.get(eval_steps, "steps")
         warmup_steps=warmup_steps,
         logging_steps=logging_steps,
+        logging_strategy="no" if logging_steps < 0 else {0: "epoch"}.get(logging_steps, "steps")
         overwrite_output_dir=True,
         **how_long_to_train_args,
     )
 
+    pprint("Training args:")
     pprint(training_args)
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
@@ -203,12 +206,7 @@ def train_xlmr(
         predictions, labels = eval_pred
         predictions = np.argmax(predictions, axis=1)
 
-        return {
-            "accuracy": accuracy.compute(predictions=predictions, references=labels),
-            "micro_f1": micro_f1.compute(
-                predictions=predictions, references=labels, accuracy="micro"
-            ),
-        }
+        return accuracy.compute(predictions=predictions, references=labels)
 
     # Define the trainer
     trainer = Trainer(
