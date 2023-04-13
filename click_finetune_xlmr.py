@@ -189,10 +189,10 @@ def train_xlmr(
         learning_rate=learning_rate,
         save_steps=save_steps,
         eval_steps=eval_steps,
-        evaluation_strategy="no" if eval_steps < 0 else {0: "epoch"}.get(eval_steps, "steps")
+        evaluation_strategy="no" if eval_steps < 0 else {0: "epoch"}.get(eval_steps, "steps"),
         warmup_steps=warmup_steps,
         logging_steps=logging_steps,
-        logging_strategy="no" if logging_steps < 0 else {0: "epoch"}.get(logging_steps, "steps")
+        logging_strategy="no" if logging_steps < 0 else {0: "epoch"}.get(logging_steps, "steps"),
         overwrite_output_dir=True,
         **how_long_to_train_args,
     )
