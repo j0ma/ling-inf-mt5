@@ -5,13 +5,20 @@ import numpy as np
 import pudb
 from datasets import Dataset
 from rich.pretty import pprint
-from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
-                          DataCollatorWithPadding, Trainer, TrainingArguments,
-                          default_data_collator)
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    DataCollatorWithPadding,
+    Trainer,
+    TrainingArguments,
+    default_data_collator,
+)
 
-accuracy = evaluate.load("accuracy")
-micro_f1 = evaluate.load("f1", average="micro")
-macro_f1 = evaluate.load("f1", average="macro")
+import pandas as pd
+from sklearn.metrics import confusion_matrix
+
+f1 = evaluate.load("f1")
+
 
 @click.command()
 @click.option(
@@ -119,15 +126,14 @@ def train_xlmr(
 
     click.echo(f"Learning rate: {learning_rate}")
 
-    # Load the XLM-R tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_name, num_labels=100
-    )
-
     flores = ds.load_from_disk(flores_path)
     ntrex = ds.load_from_disk(ntrex_path)
+
+    # Create language -> integer id mapping
+    all_langs_in_common = {lang for lang in flores} & {lang for lang in ntrex}
+    language_to_id = {language: i for i, language in enumerate(all_langs_in_common)}
+    id_to_language = {i: language for language, i in language_to_id.items()}
+
 
     # Define new dataset based on label column and finetuning langs
     data_for_finetune = ds.concatenate_datasets(
@@ -149,14 +155,19 @@ def train_xlmr(
     if "label" not in data_for_test.column_names:
         data_for_test = data_for_test.rename_column(label_column, "label")
 
-    # Create label -> integer id mapping
-    label_to_id = {
-        label: i for i, label in enumerate(set(finetune_langs + test_langs))
-    }
+    # Load the XLM-R tokenizer and model
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+    model = AutoModelForSequenceClassification.from_pretrained(
+        model_name, num_labels=max(language_to_id.values())
+    )
+
+    pprint("Classifier:")
+    pprint(model.classifier)
 
     def preprocess_function(examples):
         inputs = examples["text"]
-        labels = [label_to_id[label] for label in examples["label"]]
+        labels = [language_to_id[label] for label in examples["label"]]
 
         model_inputs = tokenizer(
             inputs, padding=True, truncation=True, max_length=max_length_tokens
@@ -172,12 +183,10 @@ def train_xlmr(
 
     if max_steps:
         how_long_to_train_args = {
-            "evaluation_strategy": "steps",
             "max_steps": max_steps,
         }
     else:
         how_long_to_train_args = {
-            "evaluation_strategy": "epoch",
             "num_train_epochs": num_train_epochs,
         }
 
@@ -189,10 +198,14 @@ def train_xlmr(
         learning_rate=learning_rate,
         save_steps=save_steps,
         eval_steps=eval_steps,
-        evaluation_strategy="no" if eval_steps < 0 else {0: "epoch"}.get(eval_steps, "steps"),
+        evaluation_strategy="no"
+        if eval_steps < 0
+        else {0: "epoch"}.get(eval_steps, "steps"),
         warmup_steps=warmup_steps,
         logging_steps=logging_steps,
-        logging_strategy="no" if logging_steps < 0 else {0: "epoch"}.get(logging_steps, "steps"),
+        logging_strategy="no"
+        if logging_steps < 0
+        else {0: "epoch"}.get(logging_steps, "steps"),
         overwrite_output_dir=True,
         **how_long_to_train_args,
     )
@@ -201,12 +214,63 @@ def train_xlmr(
     pprint(training_args)
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    _langs_set = set(finetune_langs) | set(test_langs)
 
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
         predictions = np.argmax(predictions, axis=1)
 
-        return accuracy.compute(predictions=predictions, references=labels)
+        metrics = {
+            "macro_f1": f1.compute(
+                predictions=predictions, references=labels, average="macro"
+            )["f1"],
+            "micro_f1": f1.compute(
+                predictions=predictions, references=labels, average="micro"
+            )["f1"],
+        }
+
+        # Per-class F1s
+        class_f1s = f1.compute(
+            predictions=predictions, references=labels, average=None
+        )["f1"]
+        class_ids = sorted(set(predictions) | set(labels))
+        f1s_per_class = {
+            id_to_language[class_id]: f1_score
+            for class_id, f1_score in zip(class_ids, class_f1s)
+        }
+
+        # Score each test lang
+        for lang in test_langs:
+            metrics[f"f1_{lang}"] = f1s_per_class.get(lang, 0)
+
+        # Confusion matrix
+        labels_human_readable = [id_to_language[i] for i in labels]
+        predictions_human_readable = [id_to_language[i] for i in predictions]
+
+        for hum_readable in labels_human_readable, predictions_human_readable:
+            _langs_set.update(hum_readable)
+
+        _langs = sorted(_langs_set)
+
+        remove_zero_rows = lambda df: df.loc[~(df==0).all(axis=1)]
+        remove_zero_cols = lambda df: df.loc[:, (df != 0).any(axis=0)]
+
+        cm = confusion_matrix(
+            y_true=labels_human_readable,
+            y_pred=predictions_human_readable,
+            labels=_langs,
+        )
+        confusion_df = pd.DataFrame(cm)
+        confusion_df.columns = _langs
+        confusion_df.index = _langs
+        confusion_df = remove_zero_rows(confusion_df)
+        confusion_df = remove_zero_cols(confusion_df)
+
+        print("\n\n")
+        pprint(confusion_df)
+        print("\n\n")
+
+        return metrics
 
     # Define the trainer
     trainer = Trainer(
@@ -219,11 +283,18 @@ def train_xlmr(
         compute_metrics=compute_metrics,
     )
 
-    # Train the model
+    # Evaluate the model before finetuning
+    pprint("Pre-finetune eval")
+    metrics_pre_finetune = trainer.evaluate()
+    pprint(metrics_pre_finetune)
+
+    # Finetune the model
     trainer.train()
 
-    # Evaluate the model
-    trainer.evaluate()
+    # Evaluate the model after finetuning
+    pprint("Post-finetune eval")
+    metrics_post_finetune = trainer.evaluate()
+    pprint(metrics_post_finetune)
 
 
 if __name__ == "__main__":
