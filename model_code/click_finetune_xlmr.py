@@ -272,6 +272,13 @@ def train_xlmr(
 
         return metrics
 
+    # Grab _N random rows from finetuning and test datasets
+    _N = 100
+    finetune_random_indices = np.random.choice(len(data_for_finetune), _N, replace=False)
+    test_random_indices = np.random.choice(len(data_for_test), _N, replace=False)
+    data_for_finetune = data_for_finetune.select(finetune_random_indices)
+    data_for_test = data_for_test.select(test_random_indices)
+
     # Define the trainer
     trainer = Trainer(
         model=model,

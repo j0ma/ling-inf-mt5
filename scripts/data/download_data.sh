@@ -7,8 +7,8 @@ set -euo pipefail
 flores_url=https://tinyurl.com/flores200dataset
 ntrex_url=https://github.com/MicrosoftTranslator/NTREX.git
 
-ntrex_folder=data2/ntrex
-flores_folder=data2/flores
+ntrex_folder=data/ntrex
+flores_folder=data/flores
 flores_gzip=flores.tar.gz
 
 # make data/{flores,ntrex}

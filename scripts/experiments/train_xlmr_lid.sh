@@ -6,7 +6,7 @@
 
 num_gpus=$(nvidia-smi -L | wc -l)
 
-python click_finetune_xlmr.py \
+python model_code/click_finetune_xlmr.py \
 	--flores-path ./data-bin/flores-dev-no-orth/ \
 	--ntrex-path ./data-bin/ntrex-no-orth/ \
 	--model-name "xlm-roberta-base" \
