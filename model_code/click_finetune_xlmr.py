@@ -2,20 +2,14 @@ import click
 import datasets as ds
 import evaluate
 import numpy as np
+import pandas as pd
 import pudb
 from datasets import Dataset
 from rich.pretty import pprint
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    DataCollatorWithPadding,
-    Trainer,
-    TrainingArguments,
-    default_data_collator,
-)
-
-import pandas as pd
 from sklearn.metrics import confusion_matrix
+from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
+                          DataCollatorWithPadding, Trainer, TrainingArguments,
+                          default_data_collator)
 
 f1 = evaluate.load("f1")
 
@@ -88,6 +82,7 @@ f1 = evaluate.load("f1")
 @click.option("--eval-steps", help="Eval every `eval-steps` steps.", default=100)
 @click.option("--warmup-steps", default=100)
 @click.option("--logging-steps", default=50)
+@click.option("--debug", is_flag=True)
 def train_xlmr(
     flores_path,
     ntrex_path,
@@ -108,6 +103,7 @@ def train_xlmr(
     warmup_steps,
     logging_steps,
     num_gpus,
+    debug,
 ):
     assert max_steps ^ num_train_epochs
 
@@ -133,7 +129,6 @@ def train_xlmr(
     all_langs_in_common = {lang for lang in flores} & {lang for lang in ntrex}
     language_to_id = {language: i for i, language in enumerate(all_langs_in_common)}
     id_to_language = {i: language for language, i in language_to_id.items()}
-
 
     # Define new dataset based on label column and finetuning langs
     data_for_finetune = ds.concatenate_datasets(
@@ -199,11 +194,13 @@ def train_xlmr(
         save_steps=save_steps,
         eval_steps=eval_steps,
         evaluation_strategy="no"
+
         if eval_steps < 0
         else {0: "epoch"}.get(eval_steps, "steps"),
         warmup_steps=warmup_steps,
         logging_steps=logging_steps,
         logging_strategy="no"
+
         if logging_steps < 0
         else {0: "epoch"}.get(logging_steps, "steps"),
         overwrite_output_dir=True,
@@ -236,10 +233,12 @@ def train_xlmr(
         class_ids = sorted(set(predictions) | set(labels))
         f1s_per_class = {
             id_to_language[class_id]: f1_score
+
             for class_id, f1_score in zip(class_ids, class_f1s)
         }
 
         # Score each test lang
+
         for lang in test_langs:
             metrics[f"f1_{lang}"] = f1s_per_class.get(lang, 0)
 
@@ -252,7 +251,7 @@ def train_xlmr(
 
         _langs = sorted(_langs_set)
 
-        remove_zero_rows = lambda df: df.loc[~(df==0).all(axis=1)]
+        remove_zero_rows = lambda df: df.loc[~(df == 0).all(axis=1)]
         remove_zero_cols = lambda df: df.loc[:, (df != 0).any(axis=0)]
 
         cm = confusion_matrix(
@@ -273,11 +272,15 @@ def train_xlmr(
         return metrics
 
     # Grab _N random rows from finetuning and test datasets
-    _N = 100
-    finetune_random_indices = np.random.choice(len(data_for_finetune), _N, replace=False)
-    test_random_indices = np.random.choice(len(data_for_test), _N, replace=False)
-    data_for_finetune = data_for_finetune.select(finetune_random_indices)
-    data_for_test = data_for_test.select(test_random_indices)
+
+    if debug:
+        _N = 100
+        finetune_random_indices = np.random.choice(
+            len(data_for_finetune), _N, replace=False
+        )
+        test_random_indices = np.random.choice(len(data_for_test), _N, replace=False)
+        data_for_finetune = data_for_finetune.select(finetune_random_indices)
+        data_for_test = data_for_test.select(test_random_indices)
 
     # Define the trainer
     trainer = Trainer(
