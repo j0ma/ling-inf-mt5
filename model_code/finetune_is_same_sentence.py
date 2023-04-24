@@ -8,12 +8,14 @@ import datasets as ds
 import evaluate
 import numpy as np
 import pandas as pd
+from datasets.utils.logging import disable_progress_bar
 from rich.pretty import pprint
 from rich.progress import track
 from sklearn.metrics import confusion_matrix as sk_confusion_matrix
 from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
                           DataCollatorWithPadding, Trainer, TrainingArguments,
                           default_data_collator)
+from transformers.trainer_callback import PrinterCallback
 
 MBERT = "bert-base-multilingual-cased"
 MAX_LENGTH_TOKENS = 128
@@ -67,7 +69,6 @@ def create_pairs_data(dataset, lang_pairs, n_pos, n_neg, num_rows):
     negative_examples = []
 
     for ix, pair in enumerate(lang_pairs, start=1):
-        print(f"pair {ix}/{N_lang_pairs}: {pair}")
         lang1, lang2 = pair.split("-")
 
         lang1_pos = dataset[lang1][positive_indices]["text"]
@@ -266,6 +267,7 @@ def sentence_pair_experiment(
         overwrite_output_dir=True,
         num_train_epochs=num_train_epochs,
         max_steps=max_steps,
+        ddp_find_unused_parameters=False,
     )
 
     if verbose:
@@ -284,6 +286,10 @@ def sentence_pair_experiment(
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )
+
+    # We don't want trainer to print stuff!
+    trainer.remove_callback(PrinterCallback)
+
     metrics_before_train = trainer.evaluate()
     if should_resume_from_checkpoint:
         trainer.train(resume_from_checkpoint=True)
@@ -437,14 +443,14 @@ def get_metrics_df(results):
 @click.option(
     "--num-train-epochs", type=int, default=0, help="Number of epochs to train"
 )
-@click.option("--batch-size", type=int, default=8, help="Training batch size")
+@click.option("--batch-size", type=int, default=160, help="Training batch size")
 @click.option(
     "--learning-rate", type=float, default=5e-5, help="Learning rate for training"
 )
 @click.option(
     "--max-length-tokens", type=int, default=128, help="Maximum number of tokens"
 )
-@click.option("--save-total-limit", type=int, default=2)
+@click.option("--save-total-limit", type=int, default=4)
 @click.option("--save-steps", help="Save every `save-steps` steps.", default=400)
 @click.option("--eval-steps", help="Eval every `eval-steps` steps.", default=-1)
 @click.option("--warmup-steps", default=0)
@@ -474,6 +480,17 @@ def main(
     n_neg,
     should_resume_from_checkpoint,
 ):
+    assert max_steps or num_train_epochs, (
+        f"Either max_steps or num_train_epochs must be specified!"
+        f"Got max_steps={max_steps} "
+        f"num_train_epochs={num_train_epochs}"
+    )
+
+    if not debug:
+        # Disable datasets progress bar
+
+        disable_progress_bar()
+
     _compute_same_sentence_metrics = ft.partial(
         compute_same_sentence_metrics, verbose=False
     )
