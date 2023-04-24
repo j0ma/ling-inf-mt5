@@ -196,6 +196,7 @@ def sentence_pair_experiment(
     num_train_epochs=None,
     data_loading_functions=None,
     verbose=False,
+    should_resume_from_checkpoint=False,
     *args,
     **kwargs,
 ):
@@ -284,9 +285,9 @@ def sentence_pair_experiment(
         compute_metrics=compute_metrics,
     )
     metrics_before_train = trainer.evaluate()
-    try:
+    if should_resume_from_checkpoint:
         trainer.train(resume_from_checkpoint=True)
-    except ValueError:
+    else:
         trainer.train()
     metrics_after_train = trainer.evaluate()
 
@@ -451,6 +452,7 @@ def get_metrics_df(results):
 @click.option("--debug", is_flag=True)
 @click.option("--n-pos", type=int, default=-1, help="Number of positive examples")
 @click.option("--n-neg", type=int, default=-1, help="Number of negative examples")
+@click.option("--should-resume-from-checkpoint", is_flag=True)
 def main(
     flores_path,
     ntrex_path,
@@ -470,6 +472,7 @@ def main(
     debug,
     n_pos,
     n_neg,
+    should_resume_from_checkpoint,
 ):
     _compute_same_sentence_metrics = ft.partial(
         compute_same_sentence_metrics, verbose=False
@@ -496,6 +499,7 @@ def main(
         n_pos=n_pos,
         n_neg=n_neg,
         debug=debug,
+        should_resume_from_checkpoint=should_resume_from_checkpoint,
     )
 
     _, __, language_to_id, ___ = load_flores_ntrex(flores_path, ntrex_path)
