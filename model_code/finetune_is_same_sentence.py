@@ -1,5 +1,6 @@
 import functools as ft
 import itertools as it
+import os
 from pathlib import Path
 
 import click
@@ -82,7 +83,6 @@ def create_pairs_data(dataset, lang_pairs, n_pos, n_neg, num_rows):
                 "sentence2": s2,
                 "label": "yes",
             }
-
             for s1, s2 in zip(lang1_pos, lang2_pos)
         ]
         positive_examples.extend(_positive_examples)
@@ -95,7 +95,6 @@ def create_pairs_data(dataset, lang_pairs, n_pos, n_neg, num_rows):
                 "sentence2": s2,
                 "label": "no",
             }
-
             for s1, s2 in zip(lang1_neg, lang2_neg)
         ]
         negative_examples.extend(_negative_examples)
@@ -256,13 +255,11 @@ def sentence_pair_experiment(
         save_steps=save_steps,
         eval_steps=eval_steps,
         evaluation_strategy="no"
-
         if eval_steps < 0
         else {0: "epoch"}.get(eval_steps, "steps"),
         warmup_steps=warmup_steps,
         logging_steps=logging_steps,
         logging_strategy="no"
-
         if logging_steps < 0
         else {0: "epoch"}.get(logging_steps, "steps"),
         overwrite_output_dir=True,
@@ -329,13 +326,11 @@ def compute_same_sentence_metrics(eval_pred, id_to_label, verbose=True):
 
     f1s_per_class = {
         id_to_label[class_id]: f1_score
-
         for class_id, f1_score in zip(class_ids, class_f1s)
     }
     metrics.update(
         {
             f"f1_{class_label}": f1_score
-
             for class_label, f1_score in f1s_per_class.items()
         }
     )
@@ -375,10 +370,8 @@ def get_metrics_df(results):
     confusion_matrices = {
         split: {
             pair: results[pair][f"metrics_{split}_train"]["eval_confusion_matrix"]
-
             for pair in pairs
         }
-
         for split in ["before", "after"]
     }
 
@@ -427,8 +420,8 @@ def get_metrics_df(results):
 
 
 @click.command()
-@click.option("--flores-path", type=str, required=True)
-@click.option("--ntrex-path", type=str, required=True)
+@click.option("--flores-path", type=str, default=os.environ.get("FLORES_PATH"))
+@click.option("--ntrex-path", type=str, default=os.environ.get("NTREX_PATH"))
 @click.option(
     "--language",
     type=str,
@@ -527,7 +520,6 @@ def main(
 
     for pair in (
         filtered_lang_pairs
-
         if debug
         else track(filtered_lang_pairs, description="Classifying pairs...")
     ):
