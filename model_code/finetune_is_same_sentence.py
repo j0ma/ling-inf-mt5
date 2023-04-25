@@ -8,13 +8,18 @@ import datasets as ds
 import evaluate
 import numpy as np
 import pandas as pd
-from datasets.utils.logging import disable_progress_bar
+
 from rich.pretty import pprint
-from rich.progress import track
+from rich.progress import track, Progress
 from sklearn.metrics import confusion_matrix as sk_confusion_matrix
-from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
-                          DataCollatorWithPadding, Trainer, TrainingArguments,
-                          default_data_collator)
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    DataCollatorWithPadding,
+    Trainer,
+    TrainingArguments,
+    default_data_collator,
+)
 from transformers.trainer_callback import PrinterCallback
 
 MBERT = "bert-base-multilingual-cased"
@@ -486,10 +491,8 @@ def main(
         f"num_train_epochs={num_train_epochs}"
     )
 
-    if not debug:
-        # Disable datasets progress bar
-
-        disable_progress_bar()
+    # Disable datasets progress bar
+    ds.utils.logging.disable_progress_bar()
 
     _compute_same_sentence_metrics = ft.partial(
         compute_same_sentence_metrics, verbose=False
@@ -539,14 +542,16 @@ def main(
 
     all_same_sentence_exp_results = {}
 
-    for pair in (
-        filtered_lang_pairs
-        if debug
-        else track(filtered_lang_pairs, description="Classifying pairs...")
-    ):
-        all_same_sentence_exp_results[pair] = same_sentence_experiment(
-            lang_pairs=[pair]
+    with Progress() as prog:
+        lang_pair_progress = prog.add_task(
+            "[red]Running experiment on pairs...", total=len(filtered_lang_pairs)
         )
+        for pair in filtered_lang_pairs:
+            prog.console.print(f"Pair: {pair}")
+            all_same_sentence_exp_results[pair] = same_sentence_experiment(
+                lang_pairs=[pair]
+            )
+            prog.update(lang_pair_progress, advance=1)
 
     metric_df_before_after = get_metrics_df(all_same_sentence_exp_results)
 
