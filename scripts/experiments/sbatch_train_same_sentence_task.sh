@@ -9,8 +9,6 @@
 #SBATCH --export=ALL
 #SBATCH --requeue
 #SBATCH --gres=gpu:V100:2
-#SBATCH --mail-user=jonnesaleva@brandeis.edu
-#SBATCH --mail-type=END
 #SBATCH --output=%x-%j.out
 
 export TRANSFORMERS_CACHE="./scratch/model-cache"
