@@ -11,6 +11,8 @@
 #SBATCH --gres=gpu:V100:2
 #SBATCH --output=%x-%j.out
 
+export FLORES_PATH="./data-bin/flores-dev-no-orth"
+export NTREX_PATH="./data-bin/ntrex-no-orth"
 export TRANSFORMERS_CACHE="./scratch/model-cache"
 export DATASETS_VERBOSITY=error
 export TRANSFORMERS_VERBOSITY=error
@@ -24,6 +26,8 @@ function run_exp() {
         --batch-size 250 \
         --language "${lang}" \
         --num-train-epochs 1 \
+        --flores-path "${FLORES_PATH}" \
+        --ntrex-path "${NTREX_PATH}" \
         --debug
 }
 
