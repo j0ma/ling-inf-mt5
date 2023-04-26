@@ -3,6 +3,7 @@ import itertools as it
 import os
 from pathlib import Path
 
+import pudb
 import click
 import datasets as ds
 import evaluate
@@ -241,7 +242,6 @@ def sentence_pair_experiment(
         tokenizer=tokenizer,
         max_length_tokens=max_length_tokens,
     )
-
     data_ft = data_ft.map(clf_preprocess_function, batched=True)
     data_test = data_test.map(clf_preprocess_function, batched=True)
 
@@ -534,7 +534,7 @@ def main(
     if debug:
         pprint("Filtering language pairs...")
     filtered_lang_pairs = sorted(
-        [p for p in all_available_lang_pairs if p.startswith("fin-")]
+        [p for p in all_available_lang_pairs if p.startswith(f"{language}-")]
     )
 
     if debug:
