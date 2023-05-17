@@ -1,3 +1,5 @@
+from pathlib import Path
+import json
 import click
 import datasets as ds
 import evaluate
@@ -42,6 +44,7 @@ def main(dataset_path, model_name, num_epochs, batch_size, train_lang, test_lang
 
     # Create the training and validation datasets
     train_dataset = dataset_dict['train']
+    val_dataset = dataset_dict['valid']
     test_dataset = dataset_dict['test']
 
     def preprocess_function(examples):
@@ -57,10 +60,12 @@ def main(dataset_path, model_name, num_epochs, batch_size, train_lang, test_lang
         return model_inputs
 
     train_dataset = train_dataset.map(preprocess_function, batched=True)
+    val_dataset = val_dataset.map(preprocess_function, batched=True)
     test_dataset = test_dataset.map(preprocess_function, batched=True)
 
     if train_lang != "all":
         train_dataset = train_dataset.filter(lambda example: example[lang_col] == train_lang)
+        val_dataset = val_dataset.filter(lambda example: example[lang_col] == train_lang)
     if test_lang != "all":
         test_dataset = test_dataset.filter(lambda example: example[lang_col] == test_lang)
 
@@ -100,23 +105,31 @@ def main(dataset_path, model_name, num_epochs, batch_size, train_lang, test_lang
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         evaluation_strategy="epoch",
+        save_strategy="epoch",
         logging_dir=logging_folder,
         overwrite_output_dir=True,
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_macro_f1"
     )
 
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
-        eval_dataset=test_dataset,
+        eval_dataset=val_dataset,
         data_collator=data_collator,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )
 
     trainer.train()
-    metrics = trainer.evaluate()
+    metrics_test = trainer.evaluate(test_dataset)
 
+    with open(Path(output_folder) / "test_evaluation_results.json", 'w') as fout:
+        fout.write(json.dumps(metrics_test))
+
+    print("Test set evaluation results:")
+    print(metrics_test)
 
 if __name__ == "__main__":
     main()
