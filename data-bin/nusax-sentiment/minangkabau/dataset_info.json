@@ -1,0 +1,57 @@
+{
+  "builder_name": "csv",
+  "citation": "",
+  "config_name": "default",
+  "dataset_size": 172317,
+  "description": "",
+  "download_checksums": {
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/minangkabau/train.csv": {
+      "num_bytes": 81488,
+      "checksum": null
+    },
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/minangkabau/valid.csv": {
+      "num_bytes": 16157,
+      "checksum": null
+    },
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/minangkabau/test.csv": {
+      "num_bytes": 65752,
+      "checksum": null
+    }
+  },
+  "download_size": 163397,
+  "features": {
+    "id": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "label": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "language": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 335714,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 172317,
+      "num_examples": 1000,
+      "dataset_name": "csv"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

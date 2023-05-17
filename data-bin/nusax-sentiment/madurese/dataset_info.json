@@ -1,0 +1,57 @@
+{
+  "builder_name": "csv",
+  "citation": "",
+  "config_name": "default",
+  "dataset_size": 178248,
+  "description": "",
+  "download_checksums": {
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/madurese/train.csv": {
+      "num_bytes": 84508,
+      "checksum": null
+    },
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/madurese/valid.csv": {
+      "num_bytes": 16770,
+      "checksum": null
+    },
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/madurese/test.csv": {
+      "num_bytes": 68020,
+      "checksum": null
+    }
+  },
+  "download_size": 169298,
+  "features": {
+    "id": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "label": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "language": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 347546,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 178248,
+      "num_examples": 1000,
+      "dataset_name": "csv"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

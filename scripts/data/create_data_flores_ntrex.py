@@ -14,8 +14,7 @@ import datasets as ds
     help="Path to the folder containing the parallel data files.",
 )
 @click.option(
-    "--output-folder",
-    type=click.Path(),
+    "--output-folder", type=click.Path(),
     required=True,
     help="Path to the folder where the train and test datasets will be saved.",
 )

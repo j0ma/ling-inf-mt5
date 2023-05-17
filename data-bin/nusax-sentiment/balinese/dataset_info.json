@@ -1,0 +1,57 @@
+{
+  "builder_name": "csv",
+  "citation": "",
+  "config_name": "default",
+  "dataset_size": 176813,
+  "description": "",
+  "download_checksums": {
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/balinese/train.csv": {
+      "num_bytes": 83938,
+      "checksum": null
+    },
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/balinese/valid.csv": {
+      "num_bytes": 16647,
+      "checksum": null
+    },
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/balinese/test.csv": {
+      "num_bytes": 67278,
+      "checksum": null
+    }
+  },
+  "download_size": 167863,
+  "features": {
+    "id": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "label": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "language": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 344676,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 176813,
+      "num_examples": 1000,
+      "dataset_name": "csv"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

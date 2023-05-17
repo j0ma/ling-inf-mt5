@@ -1,0 +1,57 @@
+{
+  "builder_name": "csv",
+  "citation": "",
+  "config_name": "default",
+  "dataset_size": 174796,
+  "description": "",
+  "download_checksums": {
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/ngaju/train.csv": {
+      "num_bytes": 82380,
+      "checksum": null
+    },
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/ngaju/valid.csv": {
+      "num_bytes": 16593,
+      "checksum": null
+    },
+    "/home/jonne/research/ling-rel-transfer/ling-inf-transfer/data/nusa_sentiment/ngaju/test.csv": {
+      "num_bytes": 66893,
+      "checksum": null
+    }
+  },
+  "download_size": 165866,
+  "features": {
+    "id": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "label": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "language": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 340662,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 174796,
+      "num_examples": 1000,
+      "dataset_name": "csv"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}
