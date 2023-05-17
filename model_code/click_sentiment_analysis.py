@@ -14,12 +14,19 @@ f1 = evaluate.load("f1")
 @click.option("--dataset-path", type=click.Path(exists=True))
 @click.option(
     "--model-name",
-    default="nlptown/bert-base-multilingual-uncased-sentiment",
+    default="xlm-roberta-base",
     help="Name of the pre-trained model to use",
 )
 @click.option("--num-epochs", default=2, help="Number of epochs to train the model for")
 @click.option("--batch-size", default=16, help="Batch size for training")
-def main(dataset_path, model_name, num_epochs, batch_size):
+@click.option("--train-lang", default="all", help="Language to train on")
+@click.option("--test-lang", default="all", help="Language to test on")
+@click.option("--max-length-tokens", default=MAX_LENGTH_TOKENS, help="Max length of tokens")
+@click.option("--output-folder" , default="./sentiment_results", help="Output folder")
+@click.option("--logging-folder" , default="./sentiment_logs", help="Logging folder")
+@click.option("--lang-col" , default="language", help="Language column")
+def main(dataset_path, model_name, num_epochs, batch_size, train_lang, test_lang, max_length_tokens, output_folder, logging_folder, lang_col):
+
     # Initialize the tokenizer and the model
     label_to_id = {"negative": 0, "neutral": 1, "positive": 2}
     id_to_label = {v: k for k, v in label_to_id.items()}
@@ -52,6 +59,11 @@ def main(dataset_path, model_name, num_epochs, batch_size):
     train_dataset = train_dataset.map(preprocess_function, batched=True)
     test_dataset = test_dataset.map(preprocess_function, batched=True)
 
+    if train_lang != "all":
+        train_dataset = train_dataset.filter(lambda example: example[lang_col] == train_lang)
+    if test_lang != "all":
+        test_dataset = test_dataset.filter(lambda example: example[lang_col] == test_lang)
+
     # Define a training function
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
@@ -83,12 +95,12 @@ def main(dataset_path, model_name, num_epochs, batch_size):
 
     # Set training arguments
     training_args = TrainingArguments(
-        output_dir="./sentiment_results",
+        output_dir=output_folder,
         num_train_epochs=num_epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         evaluation_strategy="epoch",
-        logging_dir="./sentiment_logs",
+        logging_dir=logging_folder,
         overwrite_output_dir=True,
     )
 
