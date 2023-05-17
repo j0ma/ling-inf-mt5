@@ -162,3 +162,4 @@ cython_debug/
 **/*.arrow
 glottolog
 results/
+data-bin/nusax_sentiment
