@@ -26,8 +26,8 @@ def mrr_experiment_lang_vs_lang2_pairwise(lang, lang2, embs, df):
     # Filter DataFrames by language only once and store them in a dictionary
     lang_dfs = {lang: df[df.language == lang].copy().reset_index(drop=True) for lang in (lang, lang2)}
 
-    embs_lang = embs[lang_dfs[lang].index]
-    embs_lang2 = embs[lang_dfs[lang2].index]
+    embs_lang = embs[lang_dfs[lang].global_sentence_id]
+    embs_lang2 = embs[lang_dfs[lang2].global_sentence_id]
 
     # Use pairwise_distances_chunked to compute pairwise distances in smaller chunks
     distances_iter = pairwise_distances_chunked(embs_lang, embs_lang2, metric="cosine")
@@ -45,6 +45,50 @@ def mrr_experiment_lang_vs_lang2_pairwise(lang, lang2, embs, df):
 
     mrr = mrr_sum / count
     return mrr
+
+def all_ranks_dists_lang_vs_lang2_pairwise(lang, lang2, embs, df):
+    assert embs.shape[0] == df.shape[0]
+
+    # Filter DataFrames by language only once and store them in a dictionary
+    lang_dfs = {lang: df[df.language == lang].copy().reset_index(drop=True) for lang in (lang, lang2)}
+
+    embs_lang = embs[lang_dfs[lang].global_sentence_id]
+    embs_lang2 = embs[lang_dfs[lang2].global_sentence_id]
+
+    # Use pairwise_distances_chunked to compute pairwise distances in smaller chunks
+    distances_iter = pairwise_distances_chunked(embs_lang, embs_lang2, metric="cosine")
+
+    mrr_sum = 0
+    count = 0
+    all_ranks = []
+    all_distances = []
+    for distances_chunk in distances_iter:
+        # Compute ranks using rankdata from scipy.stats
+        ranks = rankdata(distances_chunk, axis=1)
+        all_ranks.append(ranks)
+        all_distances.append(distances_chunk)
+
+    if len(all_ranks) == 1:
+        all_ranks = all_ranks[0]
+    if len(all_distances) == 1:
+        all_distances = all_distances[0]
+        
+    return all_ranks, all_distances
+
+def sim_search_results(lang1, lang2, embs, df, **kwargs):
+    
+    _ranks, _ = all_ranks_dists_lang_vs_lang2_pairwise(lang1, lang2, embs, df)
+    ranks_that_matter = pd.Series(_ranks.diagonal())
+    
+    out = {
+        'avg_rank' : ranks_that_matter.mean(),
+        'std_rank': ranks_that_matter.std(),
+        'mrr': ranks_that_matter.apply(lambda x: 1/x).mean(),
+        'lang1': lang1, 'lang2': lang2
+    }
+    
+    return out
+
 
 @click.command()
 @click.option("--lang1")
@@ -108,12 +152,18 @@ def main(lang1, lang2, dataset_to_use, output_file):
     for model_name, dataset_name in it.product(model_names, [dataset_to_use]):
         embeddings = featurized_sentences[dataset_name][model_name]
         df = all_dataset_dfs[dataset_name]
-        mrr = mrr_experiment_lang_vs_lang2_pairwise( lang1, lang2, embeddings, df)
-        rows_mrr_experiment_analysis_pairwise.append(
-            (dataset_name, model_name, lang1, lang2, mrr)
-        )
+        result = sim_search_results(lang1, lang2, embeddings, df)
+        result['dataset'] = dataset_name
+        result['model'] = model_name
 
-    mrr_results = pd.DataFrame(rows_mrr_experiment_analysis_pairwise, columns=["dataset", "model", "query_lang", "corpus_lang", "mrr"])
+        # mrr = mrr_experiment_lang_vs_lang2_pairwise( lang1, lang2, embeddings, df)
+        # rows_mrr_experiment_analysis_pairwise.append(
+            # (dataset_name, model_name, lang1, lang2, mrr)
+        # )
+        rows_mrr_experiment_analysis_pairwise.append(result)
+
+    # mrr_results = pd.DataFrame(rows_mrr_experiment_analysis_pairwise, columns=["dataset", "model", "query_lang", "corpus_lang", "mrr"])
+    mrr_results = pd.DataFrame(rows_mrr_experiment_analysis_pairwise)
     mrr_results.to_csv(output_file, index=False, sep="\t")
 
 if __name__ == '__main__':
