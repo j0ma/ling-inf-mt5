@@ -1,0 +1,12 @@
+acehnese
+balinese
+banjarese
+buginese
+english
+indonesian
+javanese
+madurese
+minangkabau
+ngaju
+sundanese
+toba_batak
