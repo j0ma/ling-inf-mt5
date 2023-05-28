@@ -163,3 +163,4 @@ cython_debug/
 glottolog
 results/
 data-bin/nusax_sentiment
+**/*.pkl
