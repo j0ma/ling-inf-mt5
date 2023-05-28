@@ -164,3 +164,6 @@ glottolog
 results/
 data-bin/nusax_sentiment
 **/*.pkl
+data/nusax_sentiment
+data/nusax_parallel_sentences
+experiments/
